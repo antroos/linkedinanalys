@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+.env
+
+# Logs and DB
+*.log
+bot.log
+*.db
+image_analysis_results.db
+job_analysis_*.json
+analysis_results_export.json
+export_interactive.json
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
