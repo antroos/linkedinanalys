@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Создание базы данных для хранения результатов анализа изображений
+Create a database and fill it with sample image analysis results
 """
 
 import sqlite3
 import json
 from datetime import datetime
 
-# Данные из тестирования
+# Sample data from testing
 ANALYSIS_RESULTS = [
     {
         "analysis_id": 1,
@@ -796,11 +796,11 @@ Trading, Strategy, Former Alumni, Director. 4th Architect: ex Designer: B2B: Fin
 ]
 
 def create_database():
-    """Создает базу данных и таблицы"""
+    """Create SQLite database and tables"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
-    # Создаем таблицу для результатов анализа
+    # Results table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS analysis_results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -816,7 +816,7 @@ def create_database():
         )
     ''')
     
-    # Создаем таблицу для общей статистики
+    # Summary stats table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS test_statistics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -835,17 +835,18 @@ def create_database():
     
     conn.commit()
     conn.close()
-    print("✅ База данных создана успешно!")
+    print("✅ Database created successfully!")
+
 
 def insert_analysis_data():
-    """Вставляет данные анализа в базу"""
+    """Insert sample analysis data into the database"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
-    # Очищаем таблицу перед вставкой новых данных
+    # Clear table
     cursor.execute('DELETE FROM analysis_results')
     
-    # Вставляем данные анализа
+    # Insert sample results
     for result in ANALYSIS_RESULTS:
         cursor.execute('''
             INSERT INTO analysis_results 
@@ -862,7 +863,7 @@ def insert_analysis_data():
             result['response_text']
         ))
     
-    # Вставляем общую статистику теста
+    # Insert summary stats
     cursor.execute('DELETE FROM test_statistics')
     cursor.execute('''
         INSERT INTO test_statistics 
@@ -871,42 +872,43 @@ def insert_analysis_data():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         "OpenAI GPT-4o Vision Test - Consistency Check",
-        10,  # total_requests
-        9,   # successful_requests
-        1,   # failed_requests
-        0.9, # success_rate
-        7182,  # total_prompt_tokens
-        3676,  # total_completion_tokens
-        10858, # total_tokens
-        0.054715  # total_cost_usd
+        10,
+        9,
+        1,
+        0.9,
+        7182,
+        3676,
+        10858,
+        0.054715
     ))
     
     conn.commit()
     conn.close()
-    print("✅ Данные анализа добавлены в базу!")
+    print("✅ Sample analysis data inserted!")
+
 
 def query_database():
-    """Выполняет запросы к базе данных для демонстрации"""
+    """Query database and print sample statistics"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
     print("\n" + "="*80)
-    print("📊 СТАТИСТИКА ИЗ БАЗЫ ДАННЫХ")
+    print("📊 DATABASE STATS")
     print("="*80)
     
-    # Общая статистика
+    # Overall stats
     cursor.execute('SELECT * FROM test_statistics ORDER BY created_at DESC LIMIT 1')
     stats = cursor.fetchone()
     if stats:
-        print(f"🧪 Тест: {stats[1]}")
-        print(f"📈 Всего запросов: {stats[2]}")
-        print(f"✅ Успешных: {stats[3]}")
-        print(f"❌ Неудачных: {stats[4]}")
-        print(f"📊 Процент успеха: {stats[5]*100:.1f}%")
-        print(f"💰 Общая стоимость: ${stats[9]:.6f}")
+        print(f"🧪 Test: {stats[1]}")
+        print(f"📈 Total requests: {stats[2]}")
+        print(f"✅ Successful: {stats[3]}")
+        print(f"❌ Failed: {stats[4]}")
+        print(f"📊 Success rate: {stats[5]*100:.1f}%")
+        print(f"💰 Total cost: ${stats[9]:.6f}")
     
-    # Статус каждого анализа
-    print(f"\n📋 РЕЗУЛЬТАТЫ ПО АНАЛИЗАМ:")
+    # Results overview
+    print(f"\n📋 RESULTS:")
     cursor.execute('''
         SELECT analysis_id, status, total_tokens, 
                CASE WHEN LENGTH(response_text) > 100 
@@ -920,11 +922,11 @@ def query_database():
     results = cursor.fetchall()
     for result in results:
         status_emoji = "✅" if result[1] == "SUCCESS" else "❌"
-        print(f"   {status_emoji} Анализ #{result[0]}: {result[1]} | {result[2]} токенов")
-        print(f"      Ответ: {result[3]}")
+        print(f"   {status_emoji} Analysis #{result[0]}: {result[1]} | {result[2]} tokens")
+        print(f"      Response: {result[3]}")
         print()
     
-    # Анализ по токенам
+    # Token stats
     cursor.execute('''
         SELECT 
             AVG(total_tokens) as avg_tokens,
@@ -937,13 +939,13 @@ def query_database():
     
     token_stats = cursor.fetchone()
     if token_stats:
-        print(f"🔢 СТАТИСТИКА ПО ТОКЕНАМ (только успешные):")
-        print(f"   • Средние токены: {token_stats[0]:.1f}")
-        print(f"   • Минимум токенов: {token_stats[1]}")
-        print(f"   • Максимум токенов: {token_stats[2]}")
-        print(f"   • Всего токенов: {token_stats[3]}")
+        print(f"🔢 TOKEN STATS (success only):")
+        print(f"   • Average: {token_stats[0]:.1f}")
+        print(f"   • Min: {token_stats[1]}")
+        print(f"   • Max: {token_stats[2]}")
+        print(f"   • Total: {token_stats[3]}")
     
-    # Анализ по статусам
+    # Status stats
     cursor.execute('''
         SELECT status, COUNT(*) as count, 
                AVG(total_tokens) as avg_tokens
@@ -953,18 +955,19 @@ def query_database():
     ''')
     
     status_stats = cursor.fetchall()
-    print(f"\n📊 СТАТИСТИКА ПО СТАТУСАМ:")
+    print(f"\n📊 BY STATUS:")
     for stat in status_stats:
-        print(f"   • {stat[0]}: {stat[1]} запросов (сред. {stat[2]:.1f} токенов)")
+        print(f"   • {stat[0]}: {stat[1]} requests (avg {stat[2]:.1f} tokens)")
     
     conn.close()
 
+
 def export_to_json():
-    """Экспортирует данные в JSON файл"""
+    """Export data to JSON file"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
-    # Получаем все данные
+    # Fetch all data
     cursor.execute('''
         SELECT analysis_id, prompt_text, image_file, status, 
                prompt_tokens, completion_tokens, total_tokens, 
@@ -975,7 +978,7 @@ def export_to_json():
     
     results = cursor.fetchall()
     
-    # Преобразуем в список словарей
+    # Convert to list of dicts
     export_data = []
     for result in results:
         export_data.append({
@@ -990,34 +993,34 @@ def export_to_json():
             "created_at": result[8]
         })
     
-    # Сохраняем в JSON
+    # Save
     with open('analysis_results_export.json', 'w', encoding='utf-8') as f:
         json.dump(export_data, f, ensure_ascii=False, indent=2)
     
     conn.close()
-    print("✅ Данные экспортированы в analysis_results_export.json")
+    print("✅ Exported to analysis_results_export.json")
+
 
 if __name__ == "__main__":
-    print("🗄️  СОЗДАНИЕ БАЗЫ ДАННЫХ РЕЗУЛЬТАТОВ АНАЛИЗА")
+    print("🗄️  CREATING IMAGE ANALYSIS DATABASE")
     print("="*60)
     
-    # Создаем базу данных
+    # Create DB
     create_database()
     
-    # Заполняем данными
+    # Insert data
     insert_analysis_data()
     
-    # Показываем статистику
+    # Show stats
     query_database()
     
-    # Экспортируем в JSON
+    # Export JSON
     export_to_json()
     
     print("\n" + "="*60)
-    print("✅ ГОТОВО! База данных создана и заполнена")
+    print("✅ DONE! Database created and populated")
     print("="*60)
-    print("📁 Файлы:")
-    print("   • image_analysis_results.db - SQLite база данных")
-    print("   • analysis_results_export.json - JSON экспорт")
-    print("\n💡 Для просмотра базы можешь использовать любой SQLite браузер")
-    print("   или подключиться через Python/SQL запросы") 
+    print("📁 Files:")
+    print("   • image_analysis_results.db - SQLite database")
+    print("   • analysis_results_export.json - JSON export")
+    print("\n💡 Use any SQLite browser or run SQL queries to inspect") 

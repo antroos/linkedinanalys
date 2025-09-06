@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Тест лучших промптов для финальной проверки
+Final prompt tests – example scaffold (requires Hugging Face endpoint/token set via env if used)
 """
 
 import requests
@@ -9,35 +9,31 @@ import json
 import os
 from pathlib import Path
 
-# Конфигурация (из окружения)
+# Optional Hugging Face config via env (kept empty by default to avoid secrets)
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
 HUGGINGFACE_ENDPOINT = os.getenv("HUGGINGFACE_ENDPOINT", "https://example.huggingface.cloud/invocations")
 IMAGE_PATH = "Снимок экрана 2025-07-16 в 01.41.27.png"
 
-# Лучшие промпты + дополнительные вариации
 BEST_PROMPTS = [
-    "Human: What text is visible in this image?\nAssistant:",
-    "What words and text are written in this image?",
-    "Human: Read all text from this image.\nAssistant:",
-    "Human: What text do you see?\nAssistant:",
-    "Assistant: I can see text in this image. The text says:",
-    "Q: What text is in this image?\nA:",
-    "Please identify all text visible in this image:",
-    "Human: Can you extract the text from this image?\nAssistant:"
+    "What text is visible in this image?",
+    "Read all text from this image.",
+    "Extract the text from this image.",
 ]
 
 def test_best_prompt(prompt_text, prompt_index):
-    """Тестирует один из лучших промптов"""
+    """Test a prompt against an inference endpoint (if configured)"""
     
-    print(f"\n🔥 ФИНАЛЬНЫЙ ТЕСТ #{prompt_index + 1}")
-    print(f"📋 Промпт: '{prompt_text}'")
+    print(f"\n🔥 FINAL TEST #{prompt_index + 1}")
+    print(f"📋 Prompt: '{prompt_text}'")
     print("-" * 70)
     
     try:
-        # Загружаем изображение
+        if not HUGGINGFACE_TOKEN or not HUGGINGFACE_ENDPOINT:
+            print("⚠️ Skipping: HF endpoint/token not set (HUGGINGFACE_TOKEN / HUGGINGFACE_ENDPOINT)")
+            return False, ""
+        
         with open(IMAGE_PATH, "rb") as f:
             image_data = f.read()
-        
         img_b64 = base64.b64encode(image_data).decode('utf-8')
         
         headers = {
@@ -62,42 +58,24 @@ def test_best_prompt(prompt_text, prompt_index):
         
         if response.status_code == 200:
             result = response.json()
-            
-            if 'choices' in result and result['choices']:
-                text = result['choices'][0].get('text', '').strip()
-                tokens = result.get('usage', {}).get('completion_tokens', 0)
-                
-                print(f"✅ Токенов: {tokens}")
-                print(f"📝 Ответ: '{text}'")
-                
-                # Оценка качества
-                is_good = (
-                    len(text) > 10 and 
-                    not text.startswith('and ') and 
-                    not text.startswith('including ') and
-                    not text.startswith('with ') and
-                    not text == ''
-                )
-                
-                if is_good:
-                    print(f"🎯 ОТЛИЧНЫЙ РЕЗУЛЬТАТ!")
-                    return True, text
-                else:
-                    print(f"⚠️ Слабый результат")
-                    
+            text = result.get('choices', [{}])[0].get('text', '').strip()
+            tokens = result.get('usage', {}).get('completion_tokens', 0)
+            print(f"✅ Tokens: {tokens}")
+            print(f"📝 Output: '{text}'")
+            is_good = len(text) > 10
+            return is_good, text
         else:
-            print(f"❌ Ошибка {response.status_code}")
-            
+            print(f"❌ HTTP {response.status_code}")
+            return False, ""
     except Exception as e:
-        print(f"💥 Ошибка: {e}")
-    
-    return False, ""
+        print(f"💥 Error: {e}")
+        return False, ""
 
 def main():
-    """Финальное тестирование лучших промптов"""
+    """Run final prompt tests (optional HF example)"""
     
-    print("🏆 ФИНАЛЬНОЕ ТЕСТИРОВАНИЕ ЛУЧШИХ ПРОМПТОВ")
-    print(f"🖼️ Изображение: {IMAGE_PATH}")
+    print("🏆 FINAL PROMPT TESTS")
+    print(f"🖼️ Image: {IMAGE_PATH}")
     print("=" * 80)
     
     winners = []
@@ -107,23 +85,19 @@ def main():
         if success:
             winners.append((i + 1, prompt, response_text))
     
-    # Результаты
     print("\n" + "=" * 80)
-    print("🏅 ПОБЕДИТЕЛИ:")
+    print("🏅 WINNERS:")
     print("=" * 80)
     
     if winners:
         for num, prompt, response in winners:
-            print(f"\n#{num} ПРОМПТ: '{prompt}'")
-            print(f"   ОТВЕТ: '{response}'")
+            print(f"\n#{num} PROMPT: '{prompt}'")
+            print(f"   OUTPUT: '{response}'")
+        best_prompt = winners[0][1]
+        print(f"\n🎯 RECOMMENDED PROMPT FOR BOT:")
+        print(best_prompt)
     else:
-        print("❌ Ни один промпт не прошел тест")
-    
-    # Рекомендация
-    if winners:
-        best_prompt = winners[0][1]  # Первый успешный
-        print(f"\n🎯 РЕКОМЕНДУЕМЫЙ ПРОМПТ ДЛЯ БОТА:")
-        print(f"'{best_prompt}'")
+        print("ℹ️ No winners (endpoint not configured or no good outputs)")
 
 if __name__ == "__main__":
     main() 

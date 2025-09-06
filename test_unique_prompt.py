@@ -1,33 +1,35 @@
 #!/usr/bin/env python3
 """
-Тест с уникальными ID для избежания кеширования
+Test with unique IDs to avoid caching (optional HF endpoint)
 """
 
 import requests
 import base64
 import json
-import os
 import uuid
+import os
 
-# Конфигурация (из окружения)
+# Optional HF config
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN", "")
 HUGGINGFACE_ENDPOINT = os.getenv("HUGGINGFACE_ENDPOINT", "https://example.huggingface.cloud/invocations")
 
 def test_unique_prompt():
-    """Тестирует промпт с уникальным ID"""
+    """Test a prompt with a unique ID"""
     
-    # Простое тестовое изображение
     test_image_data = base64.b64decode(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChAI9PJsENQAAAABJRU5ErkJggg=="
     )
     img_b64 = base64.b64encode(test_image_data).decode('utf-8')
+    
+    if not HUGGINGFACE_TOKEN or not HUGGINGFACE_ENDPOINT:
+        print("⚠️ Skipping: HF endpoint/token not set")
+        return
     
     headers = {
         "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
         "Content-Type": "application/json"
     }
     
-    # Тест с уникальным ID
     unique_id = str(uuid.uuid4())[:8]
     payload = {
         "image": img_b64,
@@ -38,8 +40,8 @@ def test_unique_prompt():
         "stop": ["<|im_end|>", "</s>"]
     }
     
-    print(f"🧪 Тест с уникальным ID: {unique_id}")
-    print(f"📋 Промпт: {payload['prompt']}")
+    print(f"🧪 Unique test ID: {unique_id}")
+    print(f"📋 Prompt: {payload['prompt']}")
     
     try:
         response = requests.post(
@@ -49,23 +51,20 @@ def test_unique_prompt():
             timeout=30
         )
         
-        print(f"📡 HTTP статус: {response.status_code}")
-        
+        print(f"📡 HTTP status: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
-            print(f"✅ Успешный ответ:")
+            print("✅ Successful response:")
             print(f"📄 JSON: {json.dumps(result, indent=2, ensure_ascii=False)}")
-            
-            if 'choices' in result and result['choices']:
-                text = result['choices'][0].get('text', '')
-                print(f"🎯 Ответ модели: '{text}'")
-                print(f"📊 Длина ответа: {len(text)} символов")
+            text = result.get('choices', [{}])[0].get('text', '')
+            print(f"🎯 Output: '{text}'")
+            print(f"📊 Length: {len(text)} chars)")
         else:
-            print(f"❌ Ошибка {response.status_code}")
-            print(f"📄 Ответ: {response.text}")
+            print(f"❌ Error {response.status_code}")
+            print(f"📄 Response: {response.text}")
             
     except Exception as e:
-        print(f"💥 Исключение: {e}")
+        print(f"💥 Exception: {e}")
 
 if __name__ == "__main__":
     test_unique_prompt() 

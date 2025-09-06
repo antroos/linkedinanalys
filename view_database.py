@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Просмотр данных из базы результатов анализа
+View data from the image analysis results database (CLI)
 """
 
 import sqlite3
 import json
 
 def view_analysis_by_id(analysis_id):
-    """Показать полный анализ по ID"""
+    """Show full analysis by ID"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
@@ -21,24 +21,25 @@ def view_analysis_by_id(analysis_id):
     
     result = cursor.fetchone()
     if result:
-        print(f"📋 АНАЛИЗ #{result[0]}")
+        print(f"📋 ANALYSIS #{result[0]}")
         print("="*80)
-        print(f"🔤 Промпт: {result[1]}")
-        print(f"🖼️  Изображение: {result[2]}")
-        print(f"📊 Статус: {result[3]}")
-        print(f"🔢 Токены: вход={result[4]}, выход={result[5]}, всего={result[6]}")
-        print(f"📅 Дата: {result[8]}")
-        print(f"\n📝 ОТВЕТ:")
+        print(f"🔤 Prompt: {result[1]}")
+        print(f"🖼️  Image: {result[2]}")
+        print(f"📊 Status: {result[3]}")
+        print(f"🔢 Tokens: in={result[4]}, out={result[5]}, total={result[6]}")
+        print(f"📅 Date: {result[8]}")
+        print(f"\n📝 RESPONSE:")
         print("-"*80)
         print(result[7])
         print("-"*80)
     else:
-        print(f"❌ Анализ #{analysis_id} не найден")
+        print(f"❌ Analysis #{analysis_id} not found")
     
     conn.close()
 
+
 def compare_analyses():
-    """Сравнить все успешные анализы"""
+    """Compare successful analyses"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
@@ -51,9 +52,9 @@ def compare_analyses():
     
     results = cursor.fetchall()
     
-    print("📊 СРАВНЕНИЕ УСПЕШНЫХ АНАЛИЗОВ")
+    print("📊 SUCCESSFUL ANALYSES COMPARISON")
     print("="*60)
-    print("ID | Токенов | Длина ответа")
+    print("ID | Tokens | Response length")
     print("-"*60)
     
     for result in results:
@@ -61,8 +62,9 @@ def compare_analyses():
     
     conn.close()
 
+
 def search_in_responses(keyword):
-    """Поиск по ключевому слову в ответах"""
+    """Search by keyword in responses"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
@@ -75,13 +77,12 @@ def search_in_responses(keyword):
     
     results = cursor.fetchall()
     
-    print(f"🔍 ПОИСК ПО СЛОВУ: '{keyword}'")
+    print(f"🔍 SEARCH: '{keyword}'")
     print("="*60)
     
     if results:
         for result in results:
-            print(f"📋 Анализ #{result[0]} ({result[1]}):")
-            # Показываем контекст вокруг найденного слова
+            print(f"📋 Analysis #{result[0]} ({result[1]}):")
             text = result[2]
             keyword_lower = keyword.lower()
             text_lower = text.lower()
@@ -93,28 +94,30 @@ def search_in_responses(keyword):
                 print(f"   ...{context}...")
             print()
     else:
-        print(f"❌ Слово '{keyword}' не найдено в ответах")
+        print(f"❌ Not found in responses")
     
     conn.close()
 
+
 def show_menu():
-    """Показать меню команд"""
+    """Show CLI menu"""
     print("\n" + "="*60)
-    print("🗄️  ПРОСМОТР БАЗЫ ДАННЫХ АНАЛИЗОВ")
+    print("🗄️  DB VIEWER")
     print("="*60)
-    print("Команды:")
-    print("  1-10     - Показать анализ по номеру")
-    print("  all      - Показать все анализы")
-    print("  compare  - Сравнить успешные анализы")
-    print("  search   - Поиск по ключевому слову")
-    print("  stats    - Общая статистика")
-    print("  export   - Экспорт в JSON")
-    print("  help     - Показать это меню")
-    print("  exit     - Выход")
+    print("Commands:")
+    print("  1-10     - Show analysis by ID")
+    print("  all      - Show all analyses")
+    print("  compare  - Compare successful analyses")
+    print("  search   - Search by keyword")
+    print("  stats    - Overall stats")
+    print("  export   - Export to JSON")
+    print("  help     - Show this menu")
+    print("  exit     - Exit")
     print("="*60)
 
+
 def show_all_analyses():
-    """Показать краткую информацию о всех анализах"""
+    """Show brief information about all analyses"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
@@ -130,37 +133,37 @@ def show_all_analyses():
     
     results = cursor.fetchall()
     
-    print("📋 ВСЕ АНАЛИЗЫ")
+    print("📋 ALL ANALYSES")
     print("="*100)
     
     for result in results:
         status_emoji = "✅" if result[1] == "SUCCESS" else "❌"
-        print(f"{status_emoji} #{result[0]:2d} | {result[1]:12s} | {result[2]:4d} токенов | {result[3]}")
+        print(f"{status_emoji} #{result[0]:2d} | {result[1]:12s} | {result[2]:4d} tokens | {result[3]}")
         print()
     
     conn.close()
 
+
 def show_statistics():
-    """Показать подробную статистику"""
+    """Show detailed statistics"""
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
-    # Общая статистика
+    # Overall stats
     cursor.execute('SELECT * FROM test_statistics ORDER BY created_at DESC LIMIT 1')
     stats = cursor.fetchone()
     
-    print("📊 ОБЩАЯ СТАТИСТИКА")
+    print("📊 OVERALL STATS")
     print("="*60)
     if stats:
-        print(f"🧪 Тест: {stats[1]}")
-        print(f"📈 Всего запросов: {stats[2]}")
-        print(f"✅ Успешных: {stats[3]} ({stats[5]*100:.1f}%)")
-        print(f"❌ Неудачных: {stats[4]}")
-        print(f"🔢 Всего токенов: {stats[8]:,}")
-        print(f"💰 Общая стоимость: ${stats[9]:.6f}")
-        print(f"💵 Стоимость за токен: ${stats[9]/stats[8]:.8f}")
+        print(f"🧪 Test: {stats[1]}")
+        print(f"📈 Total requests: {stats[2]}")
+        print(f"✅ Successful: {stats[3]} ({stats[5]*100:.1f}%)")
+        print(f"❌ Failed: {stats[4]}")
+        print(f"🔢 Total tokens: {stats[8]:,}")
+        print(f"💰 Total cost: ${stats[9]:.6f}")
     
-    # Статистика по статусам
+    # Stats by status
     cursor.execute('''
         SELECT status, COUNT(*) as count, 
                AVG(total_tokens) as avg_tokens,
@@ -171,14 +174,15 @@ def show_statistics():
     ''')
     
     status_stats = cursor.fetchall()
-    print(f"\n📊 ПО СТАТУСАМ:")
+    print(f"\n📊 BY STATUS:")
     for stat in status_stats:
-        print(f"   • {stat[0]}: {stat[1]} запросов | ср.{stat[2]:.0f} токенов | всего {stat[3]} токенов")
+        print(f"   • {stat[0]}: {stat[1]} requests | avg {stat[2]:.0f} tokens | total {stat[3]} tokens")
     
     conn.close()
 
+
 def main():
-    """Основной интерактивный цикл"""
+    """Interactive CLI loop"""
     show_menu()
     
     while True:
@@ -186,7 +190,7 @@ def main():
             command = input("\n> ").strip().lower()
             
             if command == "exit":
-                print("👋 До свидания!")
+                print("👋 Bye!")
                 break
             elif command == "help":
                 show_menu()
@@ -197,11 +201,11 @@ def main():
             elif command == "stats":
                 show_statistics()
             elif command == "search":
-                keyword = input("Введите ключевое слово: ").strip()
+                keyword = input("Keyword: ").strip()
                 if keyword:
                     search_in_responses(keyword)
             elif command == "export":
-                # Экспорт в JSON
+                # Export to JSON
                 conn = sqlite3.connect('image_analysis_results.db')
                 cursor = conn.cursor()
                 cursor.execute('SELECT * FROM analysis_results ORDER BY analysis_id')
@@ -224,21 +228,21 @@ def main():
                     json.dump(export_data, f, ensure_ascii=False, indent=2)
                 
                 conn.close()
-                print("✅ Экспортировано в export_interactive.json")
+                print("✅ Exported to export_interactive.json")
             elif command.isdigit():
                 analysis_id = int(command)
                 if 1 <= analysis_id <= 10:
                     view_analysis_by_id(analysis_id)
                 else:
-                    print("❌ ID анализа должен быть от 1 до 10")
+                    print("❌ Analysis ID must be between 1 and 10")
             else:
-                print("❌ Неизвестная команда. Введите 'help' для справки.")
+                print("❌ Unknown command. Type 'help' for menu.")
                 
         except KeyboardInterrupt:
-            print("\n👋 До свидания!")
+            print("\n👋 Bye!")
             break
         except Exception as e:
-            print(f"❌ Ошибка: {e}")
+            print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
     main() 

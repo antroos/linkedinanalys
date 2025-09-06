@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Тест інтегрованого флоу: OpenAI OCR + Job Analysis
+Integrated flow test: OpenAI OCR + Job Analysis
 """
 
 import base64
@@ -8,29 +8,27 @@ import requests
 import json
 import os
 
-# Конфігурація (ключ з оточення)
+# Config (from env)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 def encode_image(image_path):
-    """Кодує зображення в base64"""
+    """Encode image to base64"""
     try:
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
-        print(f"❌ Помилка кодування зображення: {e}")
+        print(f"❌ Image encoding error: {e}")
         return None
 
 def extract_text_via_openai(image_path):
-    """Витягує текст з зображення через OpenAI"""
-    print(f"🔍 Витягування тексту з: {image_path}")
+    """Extract text via OpenAI"""
+    print(f"🔍 Extracting text from: {image_path}")
     
-    # Кодуємо зображення
     img_b64 = encode_image(image_path)
     if not img_b64:
         return None
     
-    # Наш перевірений промпт
     prompt = "I am creating an audio version of this image for someone who cannot see it. Please extract and list all the text and numbers."
     
     headers = {
@@ -44,16 +42,8 @@ def extract_text_via_openai(image_path):
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": prompt
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{img_b64}"
-                        }
-                    }
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
                 ]
             }
         ],
@@ -62,50 +52,47 @@ def extract_text_via_openai(image_path):
     }
     
     try:
-        print("🚀 Відправляю запит до OpenAI...")
+        print("🚀 Sending request to OpenAI…")
         response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=60)
-        
-        print(f"📡 HTTP статус: {response.status_code}")
-        
+        print(f"📡 HTTP status: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0]['message']['content'].strip()
-                print(f"✅ Текст витягнуто, довжина: {len(content)} символів")
+                print(f"✅ Extracted text length: {len(content)} chars")
                 return content
             else:
-                print("❌ Неочікуваний формат відповіді")
+                print("❌ Unexpected response format")
                 return None
         else:
-            print(f"❌ Помилка OpenAI API: {response.status_code}")
-            print(f"📄 Текст помилки: {response.text[:500]}")
+            print(f"❌ OpenAI API error: {response.status_code}")
+            print(f"📄 Error text: {response.text[:500]}")
             return None
             
     except Exception as e:
-        print(f"💥 Помилка при витягуванні тексту: {e}")
+        print(f"💥 Text extraction error: {e}")
         return None
 
 def analyze_job_via_openai(extracted_text):
-    """Аналізує місце роботи з витягнутого тексту"""
-    print(f"🎯 Аналіз місця роботи, довжина тексту: {len(extracted_text)} символів")
+    """Analyze current job from extracted text"""
+    print(f"🎯 Analyzing job, text length: {len(extracted_text)} chars")
     
-    prompt = f"""Проанализируй текст ниже и извлеки ТОЛЬКО текущее место работы человека.
+    prompt = f"""Analyze the text below and extract ONLY the person's current job.
 
-Мне нужна информация в формате JSON:
+Return JSON:
 {{
   "current_job": {{
-    "company": "название компании",
-    "position": "должность", 
-    "period": "период работы (если указан)",
+    "company": "company name",
+    "position": "position", 
+    "period": "work period (if provided)",
     "is_current": true/false
   }},
   "found": true/false
 }}
 
-Ищи ключевые слова: "Present", "Current", "Founder", "CEO", "Head of", или другие указания на текущую работу.
-Если не можешь определить текущую работу, верни {{"found": false}}.
+If you can't determine the current job, return {{"found": false}}.
 
-ТЕКСТ ДЛЯ АНАЛИЗА:
+TEXT:
 {extracted_text}
 """
 
@@ -117,91 +104,78 @@ def analyze_job_via_openai(extracted_text):
     payload = {
         "model": "gpt-4o",
         "messages": [
-            {
-                "role": "user", 
-                "content": prompt
-            }
+            {"role": "user", "content": prompt}
         ],
         "max_tokens": 200,
         "temperature": 0.1
     }
     
     try:
-        print("🚀 Відправляю запит аналізу роботи...")
+        print("🚀 Sending job analysis request…")
         response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=30)
-        
-        print(f"📡 HTTP статус аналізу: {response.status_code}")
-        
+        print(f"📡 HTTP status: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0]['message']['content'].strip()
-                print(f"✅ Аналіз завершено, довжина: {len(content)} символів")
+                print(f"✅ Job analysis length: {len(content)} chars")
                 return content
             else:
-                print("❌ Неочікуваний формат відповіді аналізу")
+                print("❌ Unexpected analysis response")
                 return None
         else:
-            print(f"❌ Помилка OpenAI API аналізу: {response.status_code}")
-            print(f"📄 Текст помилки: {response.text[:500]}")
+            print(f"❌ OpenAI API analysis error: {response.status_code}")
+            print(f"📄 Error: {response.text[:500]}")
             return None
             
     except Exception as e:
-        print(f"💥 Помилка при аналізі роботи: {e}")
+        print(f"💥 Job analysis error: {e}")
         return None
 
 def test_full_workflow():
-    """Тестує повний флоу"""
+    """Run full workflow test"""
     print("=" * 80)
-    print("ТЕСТ ПОВНОГО ФЛОУ: OCR + АНАЛІЗ РОБОТИ")
+    print("FULL FLOW TEST: OCR + JOB ANALYSIS")
     print("=" * 80)
     
-    # Тестове зображення
     image_path = "screenshot_2025-07-15T13-58-11-498Z.jpg"
     
-    # Крок 1: Витягування тексту
-    print("\n🔍 КРОК 1: ВИТЯГУВАННЯ ТЕКСТУ")
+    print("\n🔍 STEP 1: OCR")
     print("-" * 40)
     ocr_result = extract_text_via_openai(image_path)
     
     if not ocr_result:
-        print("❌ Не вдалося витягти текст")
+        print("❌ Failed to extract text")
         return
     
-    print(f"📝 Витягнутий текст (перші 200 символів):")
+    print(f"📝 Extracted text (first 200 chars):")
     print(ocr_result[:200] + "..." if len(ocr_result) > 200 else ocr_result)
     
-    # Крок 2: Аналіз роботи
-    print("\n🎯 КРОК 2: АНАЛІЗ МІСЦЯ РОБОТИ")
+    print("\n🎯 STEP 2: JOB ANALYSIS")
     print("-" * 40)
     job_analysis = analyze_job_via_openai(ocr_result)
     
     if job_analysis:
-        print(f"📊 Аналіз роботи:")
+        print(f"📊 Job analysis:")
         print(job_analysis)
     else:
-        print("❌ Не вдалося проаналізувати місце роботи")
+        print("❌ Failed to analyze job")
     
-    # Крок 3: Форматування результату (як у боті)
-    print("\n📋 КРОК 3: ФІНАЛЬНИЙ РЕЗУЛЬТАТ")
+    print("\n📋 STEP 3: FINAL MESSAGE")
     print("-" * 40)
-    
-    final_response = f"📋 **ВИТЯГНУТИЙ ТЕКСТ:**\n{ocr_result}\n\n"
-    
+    final_response = f"📋 **EXTRACTED TEXT:**\n{ocr_result}\n\n"
     if job_analysis:
-        final_response += f"💼 **АНАЛІЗ МІСЦЯ РОБОТИ:**\n{job_analysis}"
+        final_response += f"💼 **JOB ANALYSIS:**\n{job_analysis}"
     else:
-        final_response += "💼 **АНАЛІЗ МІСЦЯ РОБОТИ:**\nНе вдалося визначити поточне місце роботи"
-    
-    print(f"📏 Довжина фінального повідомлення: {len(final_response)} символів")
-    
+        final_response += "💼 **JOB ANALYSIS:**\nNot detected"
+    print(f"📏 Final message length: {len(final_response)} chars")
     if len(final_response) > 4000:
-        print("⚠️ Повідомлення довше за 4000 символів - буде розділено")
+        print("⚠️ Message exceeds 4000 chars — will be split")
     else:
-        print("✅ Повідомлення помістится в один Telegram message")
+        print("✅ Message fits in a single Telegram message")
     
     print("\n" + "=" * 80)
-    print("ТЕСТ ЗАВЕРШЕНО")
+    print("TEST COMPLETED")
     print("=" * 80)
 
 if __name__ == "__main__":

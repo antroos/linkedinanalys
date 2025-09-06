@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Анализатор текущего места работы через OpenAI API
-Извлекает текущую работу из каждого анализа и отслеживает изменения
+Current job analyzer via OpenAI API
+Extracts the current job from each analysis and tracks changes
 """
 
 import sqlite3
@@ -10,30 +10,30 @@ import json
 from datetime import datetime
 import os
 
-# Конфигурация OpenAI (из окружения)
+# OpenAI configuration (from env)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 def extract_current_job_via_openai(response_text, analysis_id):
-    """Извлекает текущее место работы через OpenAI API"""
+    """Extract current job via OpenAI API"""
     
-    prompt = f"""Проанализируй текст ниже и извлеки ТОЛЬКО текущее место работы человека.
+    prompt = f"""Analyze the text below and extract ONLY the person's current job.
 
-Мне нужна информация в формате JSON:
+Return JSON:
 {{
   "current_job": {{
-    "company": "название компании",
-    "position": "должность", 
-    "period": "период работы (если указан)",
+    "company": "company name",
+    "position": "position", 
+    "period": "work period (if provided)",
     "is_current": true/false
   }},
   "found": true/false
 }}
 
-Ищи ключевые слова: "Present", "Current", "Founder", "CEO", "Head of", или другие указания на текущую работу.
-Если не можешь определить текущую работу, верни {{"found": false}}.
+Look for keywords like: "Present", "Current", "Founder", "CEO", "Head of", etc.
+If you can't determine the current job, return {{"found": false}}.
 
-ТЕКСТ ДЛЯ АНАЛИЗА:
+TEXT TO ANALYZE:
 {response_text}
 """
 
@@ -55,16 +55,15 @@ def extract_current_job_via_openai(response_text, analysis_id):
             "temperature": 0.1
         }
         
-        print(f"🔍 Анализируем работу в анализе #{analysis_id}...")
+        print(f"🔍 Analyzing job in analysis #{analysis_id}...")
         response = requests.post(OPENAI_API_URL, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
             result = response.json()
             ai_response = result['choices'][0]['message']['content'].strip()
             
-            # Пытаемся парсить JSON ответ
+            # Try to parse JSON
             try:
-                # Убираем markdown форматирование если есть
                 cleaned_response = ai_response.strip()
                 if cleaned_response.startswith("```json"):
                     cleaned_response = cleaned_response.replace("```json", "").replace("```", "").strip()
@@ -74,27 +73,24 @@ def extract_current_job_via_openai(response_text, analysis_id):
                 job_data = json.loads(cleaned_response)
                 return job_data
             except json.JSONDecodeError:
-                # Если не удалось парсить JSON, извлекаем информацию вручную
-                print(f"⚠️  Не удалось парсить JSON для анализа #{analysis_id}")
-                print(f"Ответ OpenAI: {ai_response}")
+                print(f"⚠️  JSON parse failed for analysis #{analysis_id}")
+                print(f"OpenAI response: {ai_response}")
                 return {"found": False, "error": "JSON parse failed", "raw_response": ai_response}
         
         else:
-            print(f"❌ Ошибка OpenAI API: {response.status_code}")
+            print(f"❌ OpenAI API error: {response.status_code}")
             return {"found": False, "error": f"API error {response.status_code}"}
             
     except Exception as e:
-        print(f"❌ Исключение при анализе #{analysis_id}: {e}")
+        print(f"❌ Exception analyzing #{analysis_id}: {e}")
         return {"found": False, "error": str(e)}
 
 def analyze_all_jobs():
-    """Анализирует текущую работу во всех успешных анализах"""
+    """Analyze current job across successful analyses"""
     
-    # Подключаемся к базе данных
     conn = sqlite3.connect('image_analysis_results.db')
     cursor = conn.cursor()
     
-    # Получаем все успешные анализы
     cursor.execute('''
         SELECT analysis_id, response_text
         FROM analysis_results 
@@ -105,56 +101,49 @@ def analyze_all_jobs():
     results = cursor.fetchall()
     conn.close()
     
-    print("🏢 АНАЛИЗ ТЕКУЩИХ МЕСТ РАБОТЫ")
+    print("🏢 CURRENT JOB ANALYZER")
     print("="*80)
-    print(f"Найдено {len(results)} успешных анализов для обработки")
+    print(f"Found {len(results)} successful analyses to process")
     
     job_extractions = []
     
     for result in results:
         analysis_id, response_text = result
-        
-        # Извлекаем информацию о работе через OpenAI
         job_info = extract_current_job_via_openai(response_text, analysis_id)
-        
         job_extractions.append({
             "analysis_id": analysis_id,
             "job_info": job_info,
             "timestamp": datetime.now().isoformat()
         })
-        
-        # Показываем результат
-        print(f"\n📋 АНАЛИЗ #{analysis_id}:")
+        print(f"\n📋 ANALYSIS #{analysis_id}:")
         if job_info.get("found", False):
             current_job = job_info.get("current_job", {})
-            print(f"   🏢 Компания: {current_job.get('company', 'Не указана')}")
-            print(f"   👔 Должность: {current_job.get('position', 'Не указана')}")
-            print(f"   📅 Период: {current_job.get('period', 'Не указан')}")
-            print(f"   ✅ Текущая: {current_job.get('is_current', 'Неизвестно')}")
+            print(f"   🏢 Company: {current_job.get('company', 'N/A')}")
+            print(f"   👔 Position: {current_job.get('position', 'N/A')}")
+            print(f"   📅 Period: {current_job.get('period', 'N/A')}")
+            print(f"   ✅ Current: {current_job.get('is_current', 'Unknown')}")
         else:
-            print(f"   ❌ Текущая работа не найдена")
+            print(f"   ❌ Current job not found")
             if "error" in job_info:
-                print(f"   🔴 Ошибка: {job_info['error']}")
+                print(f"   🔴 Error: {job_info['error']}")
     
     return job_extractions
 
 def compare_job_changes(job_extractions):
-    """Сравнивает изменения в работе между анализами"""
+    """Compare job changes across analyses"""
     
     print(f"\n{'='*80}")
-    print("🔄 АНАЛИЗ ИЗМЕНЕНИЙ В РАБОТЕ")
+    print("🔄 JOB CHANGES ANALYSIS")
     print("="*80)
     
-    # Фильтруем только найденные работы
     found_jobs = [job for job in job_extractions if job["job_info"].get("found", False)]
     
     if len(found_jobs) < 2:
-        print("❌ Недостаточно данных для сравнения (нужно минимум 2 успешных извлечения)")
+        print("❌ Not enough data to compare (need at least 2)")
         return
     
-    print(f"📊 Сравниваем {len(found_jobs)} извлеченных мест работы:")
+    print(f"📊 Comparing {len(found_jobs)} extracted jobs:")
     
-    # Группируем по компаниям и должностям
     companies = []
     positions = []
     
@@ -168,32 +157,30 @@ def compare_job_changes(job_extractions):
         if position:
             positions.append((job["analysis_id"], position))
     
-    # Анализируем изменения в компании
-    print(f"\n🏢 АНАЛИЗ ИЗМЕНЕНИЙ КОМПАНИИ:")
+    print(f"\n🏢 COMPANY CHANGES:")
     unique_companies = list(set([comp[1] for comp in companies]))
     
     if len(unique_companies) == 1:
-        print(f"   ✅ Компания не менялась: {unique_companies[0]}")
+        print(f"   ✅ Company unchanged: {unique_companies[0]}")
     else:
-        print(f"   🔄 Обнаружено {len(unique_companies)} разных компаний:")
+        print(f"   🔄 Detected {len(unique_companies)} different companies:")
         for i, company in enumerate(unique_companies, 1):
             analyses = [comp[0] for comp in companies if comp[1] == company]
-            print(f"      {i}. '{company}' (анализы: {', '.join(map(str, analyses))})")
+            print(f"      {i}. '{company}' (analyses: {', '.join(map(str, analyses))})")
     
-    # Анализируем изменения в должности
-    print(f"\n👔 АНАЛИЗ ИЗМЕНЕНИЙ ДОЛЖНОСТИ:")
+    print(f"\n👔 POSITION CHANGES:")
     unique_positions = list(set([pos[1] for pos in positions]))
     
     if len(unique_positions) == 1:
-        print(f"   ✅ Должность не менялась: {unique_positions[0]}")
+        print(f"   ✅ Position unchanged: {unique_positions[0]}")
     else:
-        print(f"   🔄 Обнаружено {len(unique_positions)} разных должностей:")
+        print(f"   🔄 Detected {len(unique_positions)} different positions:")
         for i, position in enumerate(unique_positions, 1):
             analyses = [pos[0] for pos in positions if pos[1] == position]
-            print(f"      {i}. '{position}' (анализы: {', '.join(map(str, analyses))})")
+            print(f"      {i}. '{position}' (analyses: {', '.join(map(str, analyses))})")
 
 def save_job_analysis_results(job_extractions):
-    """Сохраняет результаты анализа в JSON файл"""
+    """Save analysis results to JSON file"""
     
     output_data = {
         "analysis_timestamp": datetime.now().isoformat(),
@@ -207,26 +194,25 @@ def save_job_analysis_results(job_extractions):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
     
-    print(f"\n💾 Результаты сохранены в: {filename}")
+    print(f"\n💾 Saved results to: {filename}")
     return filename
 
 def create_summary_report(job_extractions):
-    """Создает итоговый отчет"""
+    """Create summary report"""
     
     found_jobs = [job for job in job_extractions if job["job_info"].get("found", False)]
     
     print(f"\n{'='*80}")
-    print("📊 ИТОГОВЫЙ ОТЧЕТ")
+    print("📊 SUMMARY REPORT")
     print("="*80)
     
-    print(f"📈 Общая статистика:")
-    print(f"   • Всего анализов обработано: {len(job_extractions)}")
-    print(f"   • Успешно извлечена работа: {len(found_jobs)}")
-    print(f"   • Не удалось извлечь: {len(job_extractions) - len(found_jobs)}")
-    print(f"   • Процент успеха: {len(found_jobs)/len(job_extractions)*100:.1f}%")
+    print(f"📈 Overall:")
+    print(f"   • Processed analyses: {len(job_extractions)}")
+    print(f"   • Found current job: {len(found_jobs)}")
+    print(f"   • Not found: {len(job_extractions) - len(found_jobs)}")
+    print(f"   • Success rate: {len(found_jobs)/len(job_extractions)*100:.1f}%")
     
     if found_jobs:
-        # Самая частая компания
         companies = [job["job_info"]["current_job"].get("company", "").strip().lower() 
                     for job in found_jobs if job["job_info"]["current_job"].get("company")]
         
@@ -235,43 +221,35 @@ def create_summary_report(job_extractions):
             company_counts = Counter(companies)
             most_common_company = company_counts.most_common(1)[0]
             
-            print(f"\n🏢 Информация о компаниях:")
-            print(f"   • Всего упоминаний компаний: {len(companies)}")
-            print(f"   • Уникальных компаний: {len(set(companies))}")
-            print(f"   • Самая частая: '{most_common_company[0]}' ({most_common_company[1]} раз)")
+            print(f"\n🏢 Companies:")
+            print(f"   • Total mentions: {len(companies)}")
+            print(f"   • Unique companies: {len(set(companies))}")
+            print(f"   • Most common: '{most_common_company[0]}' ({most_common_company[1]} times)")
             
             if len(set(companies)) > 1:
-                print(f"   ⚠️  ВНИМАНИЕ: Обнаружены разные компании! Возможна смена работы.")
+                print(f"   ⚠️  NOTE: Different companies detected — possible job change.")
             else:
-                print(f"   ✅ Компания стабильна во всех анализах")
+                print(f"   ✅ Company is consistent across analyses")
 
 def main():
-    """Основная функция"""
+    """Entrypoint"""
     
-    print("🏢 АНАЛИЗАТОР ТЕКУЩЕГО МЕСТА РАБОТЫ")
+    print("🏢 CURRENT JOB ANALYZER")
     print("="*60)
-    print("Использует OpenAI API для извлечения информации о работе")
-    print("из результатов анализа изображений")
+    print("Uses OpenAI API to extract current job from image analysis responses")
     print()
     
     try:
-        # Анализируем все места работы
         job_extractions = analyze_all_jobs()
-        
-        # Сравниваем изменения
         compare_job_changes(job_extractions)
-        
-        # Создаем итоговый отчет
         create_summary_report(job_extractions)
-        
-        # Сохраняем результаты
         filename = save_job_analysis_results(job_extractions)
         
-        print(f"\n✅ Анализ завершен!")
-        print(f"📁 Подробные результаты: {filename}")
+        print(f"\n✅ Analysis completed!")
+        print(f"📁 Details: {filename}")
         
     except Exception as e:
-        print(f"❌ Ошибка при выполнении анализа: {e}")
+        print(f"❌ Error during analysis: {e}")
 
 if __name__ == "__main__":
     main() 

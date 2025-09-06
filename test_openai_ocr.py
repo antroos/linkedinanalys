@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Тест OpenAI GPT-4 Vision API для извлечения текста
+OpenAI GPT-4 Vision OCR test – extract text from an image
 """
 
 import requests
@@ -9,14 +9,14 @@ import json
 import os
 from pathlib import Path
 
-# Конфигурация OpenAI (из окружения)
+# OpenAI configuration (from env)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
-# Путь к изображению
+# Image path
 IMAGE_PATH = "Снимок экрана 2025-07-16 в 01.41.27.png"
 
-# Промпты для тестирования OCR
+# OCR prompts
 OCR_PROMPTS = [
     "Extract all visible text from this image. List every word, number, and text element you can see.",
     "Please read and transcribe all text content in this image.",
@@ -31,48 +31,36 @@ OCR_PROMPTS = [
 ]
 
 def test_openai_vision(prompt_text, prompt_index):
-    """Тестирует OpenAI GPT-4 Vision с определенным промптом"""
+    """Test OpenAI GPT-4 Vision with a specific prompt"""
     
-    print(f"\n🔥 OPENAI ТЕСТ #{prompt_index + 1}")
-    print(f"📋 Промпт: '{prompt_text}'")
+    print(f"\n🔥 OPENAI TEST #{prompt_index + 1}")
+    print(f"📋 Prompt: '{prompt_text}'")
     print("-" * 80)
     
     try:
-        # Загружаем изображение
         if not Path(IMAGE_PATH).exists():
-            print(f"❌ Файл {IMAGE_PATH} не найден!")
+            print(f"❌ Image not found: {IMAGE_PATH}!")
             return False, ""
             
         with open(IMAGE_PATH, "rb") as f:
             image_data = f.read()
         
-        # Кодируем в base64
         img_b64 = base64.b64encode(image_data).decode('utf-8')
-        print(f"🖼️ Изображение загружено: {len(image_data)} байт, base64: {len(img_b64)} символов")
+        print(f"🖼️ Image loaded: {len(image_data)} bytes, base64: {len(img_b64)} chars")
         
-        # Заголовки
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {OPENAI_API_KEY}"
         }
         
-        # Payload для OpenAI Vision API
         payload = {
-            "model": "gpt-4o",  # Или gpt-4-vision-preview
+            "model": "gpt-4o",
             "messages": [
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": prompt_text
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{img_b64}"
-                            }
-                        }
+                        {"type": "text", "text": prompt_text},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
                     ]
                 }
             ],
@@ -80,7 +68,7 @@ def test_openai_vision(prompt_text, prompt_index):
             "temperature": 0.1
         }
         
-        print("🚀 Отправляю запрос к OpenAI...")
+        print("🚀 Sending request to OpenAI…")
         response = requests.post(
             OPENAI_API_URL,
             headers=headers,
@@ -88,7 +76,7 @@ def test_openai_vision(prompt_text, prompt_index):
             timeout=30
         )
         
-        print(f"📡 HTTP статус: {response.status_code}")
+        print(f"📡 HTTP status: {response.status_code}")
         
         if response.status_code == 200:
             result = response.json()
@@ -97,41 +85,40 @@ def test_openai_vision(prompt_text, prompt_index):
                 content = result['choices'][0]['message']['content'].strip()
                 tokens = result.get('usage', {}).get('completion_tokens', 0)
                 
-                print(f"✅ УСПЕХ!")
-                print(f"📊 Токенов: {tokens}")
-                print(f"📝 Ответ GPT-4:")
+                print("✅ SUCCESS!")
+                print(f"📊 Tokens: {tokens}")
+                print("📝 Response:")
                 print("-" * 50)
                 print(content)
                 print("-" * 50)
                 
-                # Проверяем качество
-                if len(content) > 20 and ("text" in content.lower() or "изображени" in content.lower()):
-                    print(f"🎯 ОТЛИЧНЫЙ РЕЗУЛЬТАТ!")
+                # Quality heuristic example
+                if len(content) > 20 and ("text" in content.lower() or "image" in content.lower()):
+                    print("🎯 GOOD RESULT!")
                     return True, content
                 else:
-                    print(f"⚠️ Возможно неполный результат")
-                    return True, content  # Все равно считаем успехом
-                    
+                    print("⚠️ Possibly incomplete result")
+                    return True, content
             else:
-                print(f"❌ Нет содержимого в ответе")
-                print(f"📄 Полный ответ: {json.dumps(result, indent=2, ensure_ascii=False)}")
+                print("❌ No content in response")
+                print(f"📄 Full response: {json.dumps(result, indent=2, ensure_ascii=False)}")
                 
         else:
-            print(f"❌ Ошибка {response.status_code}")
-            print(f"📄 Ответ: {response.text}")
+            print(f"❌ Error {response.status_code}")
+            print(f"📄 Response: {response.text}")
             
     except Exception as e:
-        print(f"💥 Исключение: {e}")
+        print(f"💥 Exception: {e}")
     
     return False, ""
 
 def main():
-    """Тестирует OpenAI GPT-4 Vision для OCR"""
+    """Run OCR tests"""
     
-    print("🚀 ТЕСТИРОВАНИЕ OPENAI GPT-4 VISION ДЛЯ OCR")
-    print(f"🖼️ Изображение: {IMAGE_PATH}")
+    print("🚀 TESTING OPENAI GPT-4 VISION FOR OCR")
+    print(f"🖼️ Image: {IMAGE_PATH}")
     print(f"🔗 API: {OPENAI_API_URL}")
-    print(f"📝 Количество промптов: {len(OCR_PROMPTS)}")
+    print(f"📝 Prompts: {len(OCR_PROMPTS)}")
     print("=" * 100)
     
     successful_results = []
@@ -141,34 +128,26 @@ def main():
         if success:
             successful_results.append((i + 1, prompt, response_text))
         
-        # Небольшая пауза между запросами
         import time
         time.sleep(1)
     
-    # Итоги
     print("\n" + "=" * 100)
-    print("🏆 РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ OPENAI")
+    print("🏆 OPENAI TEST RESULTS")
     print("=" * 100)
     
     if successful_results:
-        print(f"✅ Успешных тестов: {len(successful_results)}")
-        
-        # Показываем лучшие результаты
-        for num, prompt, response in successful_results[:3]:  # Первые 3
-            print(f"\n🎯 РЕЗУЛЬТАТ #{num}:")
-            print(f"   ПРОМПТ: '{prompt}'")
-            print(f"   ОТВЕТ: {response[:200]}{'...' if len(response) > 200 else ''}")
+        print(f"✅ Successful: {len(successful_results)}")
+        for num, prompt, response in successful_results[:3]:
+            print(f"\n🎯 RESULT #{num}:")
+            print(f"   PROMPT: '{prompt}'")
+            print(f"   RESPONSE: {response[:200]}{'...' if len(response) > 200 else ''}")
     else:
-        print("❌ Ни один тест не дал результата")
+        print("❌ No successful results")
     
-    # Рекомендация для бота
     if successful_results:
         best_prompt = successful_results[0][1]
-        print(f"\n🎯 ЛУЧШИЙ ПРОМПТ ДЛЯ БОТА:")
+        print(f"\n🎯 RECOMMENDED PROMPT FOR BOT:")
         print(f"'{best_prompt}'")
-        
-        print(f"\n💡 РЕКОМЕНДАЦИЯ:")
-        print(f"Переключить бота на OpenAI GPT-4 Vision API вместо HuggingFace endpoint")
 
 if __name__ == "__main__":
     main() 
